@@ -799,6 +799,7 @@ img { display: block; max-width: 100%; }
   #messages-container { padding: 12px 14px 8px; }
   .msg-bubble { font-size: 13.5px; }
   .avatar { width: 32px; height: 32px; font-size: 11px; }
+  input[type="text"], input[type="search"], textarea { font-size: 16px !important; }
 }
 
 /* ── Toast Notifications ── */
