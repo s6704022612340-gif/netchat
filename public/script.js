@@ -603,7 +603,7 @@ function buildEmojiDrawer() {
 dom.emojiBtn.addEventListener('click', () => setHidden(dom.emojiDrawer, !dom.emojiDrawer.classList.contains('hidden')));
 document.addEventListener('click', e => {
   if (!dom.emojiDrawer.classList.contains('hidden') &&
-      !dom.emojiDrawer.contains(e.target) && e.target !== dom.emojiBtn) {
+      !dom.emojiDrawer.contains(e.target) && !dom.emojiBtn.contains(e.target)) {
     setHidden(dom.emojiDrawer, true);
   }
 });
