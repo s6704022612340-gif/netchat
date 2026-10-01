@@ -600,14 +600,18 @@ function appendMessage(msg, isSelf) {
   });
 
   // Image lightbox handler
-  li.querySelector('.msg-image')?.addEventListener('click', () => {
-    const lightboxModal = document.getElementById('image-lightbox-modal');
-    const lightboxImg = document.getElementById('lightbox-img');
-    if (lightboxModal && lightboxImg) {
-      lightboxImg.src = msg.content;
-      setHidden(lightboxModal, false);
-    }
-  });
+  const imgEl = li.querySelector('.msg-image');
+  if (imgEl) {
+    imgEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const lightboxModal = document.getElementById('image-lightbox-modal');
+      const lightboxImg = document.getElementById('lightbox-img');
+      if (lightboxModal && lightboxImg) {
+        lightboxImg.src = msg.content;
+        setHidden(lightboxModal, false);
+      }
+    });
+  }
 
   li.querySelector('.msg-delete-btn')?.addEventListener('click', () => {
     socket.emit('delete_message', {
