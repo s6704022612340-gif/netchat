@@ -1,30 +1,30 @@
 /* ════════════════════════════════════════════════════
-   NetChat – style.css  (Light default + Dark theme)
+   KuiDi – style.css  (Light default + Dark theme)
 ════════════════════════════════════════════════════ */
 
 /* ── Light Theme (default) ── */
 :root {
-  --green:    #10b981;
-  --green-d:  #059669;
+  --green:    #a78bfa;
+  --green-d:  #8b5cf6;
 
-  --bg:       #f8fafc;
+  --bg:       #faf8ff;
   --bg2:      #ffffff;
-  --bg3:      #f1f5f9;
-  --bg4:      #e2e8f0;
-  --border:   #e2e8f0;
-  --shadow:   0 4px 24px rgba(0,0,0,0.08);
-  --shadow-md:0 8px 32px rgba(0,0,0,0.12);
+  --bg3:      #f5f0ff;
+  --bg4:      #ede9fe;
+  --border:   #e8e0f8;
+  --shadow:   0 4px 24px rgba(139,92,246,0.10);
+  --shadow-md:0 8px 32px rgba(139,92,246,0.14);
 
-  --text:     #0f172a;
-  --text2:    #475569;
-  --text3:    #94a3b8;
+  --text:     #1e1040;
+  --text2:    #5b4f87;
+  --text3:    #9d8ec7;
   --danger:   #ef4444;
 
-  --bubble-self:       #10b981;
+  --bubble-self:       #a78bfa;
   --bubble-self-text:  #ffffff;
   --bubble-other:      #ffffff;
-  --bubble-other-text: #0f172a;
-  --bubble-border:     #e2e8f0;
+  --bubble-other-text: #1e1040;
+  --bubble-border:     #e8e0f8;
 
   --radius:   14px;
   --rad-sm:   8px;
@@ -34,23 +34,23 @@
 
 /* ── Dark Theme ── */
 [data-theme="dark"] {
-  --bg:       #0f172a;
-  --bg2:      #1e293b;
-  --bg3:      #263347;
-  --bg4:      #334155;
-  --border:   rgba(255,255,255,0.08);
+  --bg:       #1a1030;
+  --bg2:      #231642;
+  --bg3:      #2d1f55;
+  --bg4:      #3b2a6b;
+  --border:   rgba(167,139,250,0.15);
   --shadow:   0 4px 24px rgba(0,0,0,0.35);
   --shadow-md:0 8px 32px rgba(0,0,0,0.5);
 
-  --text:     #f1f5f9;
-  --text2:    #94a3b8;
-  --text3:    #64748b;
+  --text:     #f0eaff;
+  --text2:    #c4b5fd;
+  --text3:    #7c6db5;
 
-  --bubble-self:       #10b981;
+  --bubble-self:       #7c3aed;
   --bubble-self-text:  #ffffff;
-  --bubble-other:      #1e293b;
-  --bubble-other-text: #f1f5f9;
-  --bubble-border:     rgba(255,255,255,0.08);
+  --bubble-other:      #231642;
+  --bubble-other-text: #f0eaff;
+  --bubble-border:     rgba(167,139,250,0.15);
 }
 
 /* ── Reset ── */

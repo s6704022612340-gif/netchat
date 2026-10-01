@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NetChat — Real-Time Messenger</title>
-  <meta name="description" content="NetChat เป็นแอปส่งข้อความแบบ Real-Time สร้างด้วย Node.js, Express และ Socket.io" />
+  <title>KuiDi — Real-Time Messenger</title>
+  <meta name="description" content="KuiDi เป็นแอปส่งข้อความแบบ Real-Time สร้างด้วย Node.js, Express และ Socket.io" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
@@ -15,17 +15,8 @@
 <div id="login-screen" class="screen">
   <div class="login-card">
     <div class="login-logo">
-      <svg viewBox="0 0 48 48" width="48" height="48" fill="none">
-        <rect width="48" height="48" rx="14" fill="url(#lg-logo)"/>
-        <path d="M12 30 Q12 18 24 18 Q36 18 36 26 Q36 34 24 34 L16 38 Z" fill="#fff"/>
-        <defs>
-          <linearGradient id="lg-logo" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#10b981"/>
-            <stop offset="100%" stop-color="#059669"/>
-          </linearGradient>
-        </defs>
-      </svg>
-      <span>NetChat</span>
+      <img src="logo.png" width="64" height="64" alt="KuiDi Logo" style="border-radius:14px;box-shadow:0 4px 12px rgba(0,0,0,0.1);" />
+      <span>KuiDi</span>
     </div>
     <p class="login-subtitle">ระบบสื่อสารแบบ Real-Time</p>
     <form id="login-form">
@@ -33,7 +24,7 @@
         <label for="username-input">ชื่อผู้ใช้</label>
         <input id="username-input" type="text" maxlength="25" autocomplete="off" required />
       </div>
-      <button type="submit" id="login-btn" class="btn-primary">เข้าร่วม NetChat</button>
+      <button type="submit" id="login-btn" class="btn-primary">เข้าร่วม KuiDi</button>
     </form>
 
   </div>
@@ -46,17 +37,8 @@
   <aside id="sidebar">
     <header class="sidebar-header">
       <div class="sidebar-logo">
-        <svg viewBox="0 0 32 32" width="26" height="26" fill="none">
-          <rect width="32" height="32" rx="9" fill="url(#lg-sm)"/>
-          <path d="M8 20 Q8 12 16 12 Q24 12 24 17 Q24 22 16 22 L10 25 Z" fill="#fff"/>
-          <defs>
-            <linearGradient id="lg-sm" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stop-color="#10b981"/>
-              <stop offset="100%" stop-color="#059669"/>
-            </linearGradient>
-          </defs>
-        </svg>
-        <strong>NetChat</strong>
+        <img src="logo.png" width="32" height="32" alt="KuiDi" style="border-radius:8px;" />
+        <strong>KuiDi</strong>
       </div>
       <div class="header-right">
         <div id="admin-badge" class="hidden admin-badge">Admin</div>
@@ -121,13 +103,9 @@
     <!-- Welcome -->
     <div id="welcome-screen" class="welcome">
       <div class="welcome-icon">
-        <svg viewBox="0 0 64 64" width="64" height="64" fill="none">
-          <rect width="64" height="64" rx="18" fill="url(#wc-grad)"/>
-          <path d="M16 42 Q16 22 32 22 Q48 22 48 33 Q48 44 32 44 L20 50 Z" fill="#fff" opacity=".9"/>
-          <defs><linearGradient id="wc-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#10b981"/><stop offset="100%" stop-color="#059669"/></linearGradient></defs>
-        </svg>
+        <img src="logo.png" width="96" height="96" alt="KuiDi Logo" style="border-radius:24px;box-shadow:0 8px 24px rgba(0,0,0,0.1);" />
       </div>
-      <h2>ยินดีต้อนรับสู่ NetChat</h2>
+      <h2>ยินดีต้อนรับสู่ KuiDi</h2>
       <p>เลือกห้องหรือผู้ใช้จากแถบซ้ายเพื่อเริ่มสนทนา</p>
     </div>
 
