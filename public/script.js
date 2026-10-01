@@ -63,6 +63,8 @@ const dom = {
   createRoomBtn:     $('create-room-btn'),
   welcomeScreen:     $('welcome-screen'),
   chatHeader:        $('chat-header'),
+  mobileBackBtn:     $('mobile-back-btn'),
+  sidebar:           $('sidebar'),
   chatHeaderAvatar:  $('chat-header-avatar'),
   chatHeaderName:    $('chat-header-name'),
   chatHeaderSub:     $('chat-header-sub'),
@@ -297,6 +299,7 @@ function selectRoom(id, name, color) {
   setHidden(dom.callBtn, true);
   setHidden(dom.deleteRoomBtn, !canDel);
   updateSidebarActive();
+  dom.sidebar.classList.add('hide-mobile');
 }
 
 function selectUser(id, name, color) {
@@ -306,6 +309,7 @@ function selectUser(id, name, color) {
   setHidden(dom.deleteRoomBtn, true);
   renderPrivateHistory(id);
   updateSidebarActive();
+  dom.sidebar.classList.add('hide-mobile');
 }
 
 function openChat(name, sub, color) {
@@ -328,6 +332,12 @@ function updateSidebarActive() {
     : `.user-item[data-id="${currentTarget.id}"]`;
   document.querySelector(sel)?.classList.add('active');
 }
+
+dom.mobileBackBtn?.addEventListener('click', () => {
+  dom.sidebar.classList.remove('hide-mobile');
+  currentTarget = null;
+  updateSidebarActive();
+});
 
 // ════════════════════════════════════════════════════
 // ── Room History ─────────────────────────────────────
