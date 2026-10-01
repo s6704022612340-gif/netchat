@@ -42,10 +42,20 @@ function sysMsg(roomId, text)  {
 io.on('connection', socket => {
 
     // ── Login ──────────────────────────────────────────────────
-    socket.on('login', username => {
-        const name     = (String(username || '').trim().slice(0, 25)) || 'Anonymous';
-        const isAdmin  = name.toLowerCase() === 'admin';
-        const color    = isAdmin ? '#EF4444' : pick(AVATAR_COLORS);
+    socket.on('login', rawUsername => {
+        let baseName = (String(rawUsername || '').trim().slice(0, 25)) || 'Anonymous';
+        let name = baseName;
+        let counter = 1;
+
+        // Auto-rename if username is already taken by another active user
+        const existingNames = Object.values(users).map(u => u.username.toLowerCase());
+        while (existingNames.includes(name.toLowerCase())) {
+            name = `${baseName} (${counter})`;
+            counter++;
+        }
+
+        const isAdmin = baseName.toLowerCase() === 'admin';
+        const color   = isAdmin ? '#EF4444' : pick(AVATAR_COLORS);
 
         users[socket.id] = { id: socket.id, username: name, color, isAdmin };
 

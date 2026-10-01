@@ -494,17 +494,20 @@ img { display: block; max-width: 100%; }
   white-space: nowrap; padding-bottom: 2px; margin-top: 2px;
 }
 
-/* Delete button on bubble */
-.msg-delete-btn {
-  display: none; position: absolute; top: -9px; right: -9px;
+/* Delete & Copy buttons on bubble */
+.msg-delete-btn, .msg-copy-btn {
+  display: none; position: absolute; top: -9px;
   width: 22px; height: 22px; border-radius: 50%;
-  background: var(--danger); color: #fff;
   font-size: 11px; align-items: center; justify-content: center;
   border: 2px solid var(--bg2);
   transition: transform .15s;
+  cursor: pointer;
 }
-.msg-bubble:hover .msg-delete-btn { display: flex; }
-.msg-delete-btn:hover { transform: scale(1.1); }
+.msg-delete-btn { right: -9px; background: var(--danger); color: #fff; }
+.msg-copy-btn   { right: 18px; background: var(--bg4); color: var(--text2); }
+.msg-bubble:hover .msg-delete-btn,
+.msg-bubble:hover .msg-copy-btn { display: flex; }
+.msg-delete-btn:hover, .msg-copy-btn:hover { transform: scale(1.1); color: var(--text); }
 
 /* File / Image */
 .msg-image {

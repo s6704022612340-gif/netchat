@@ -117,8 +117,10 @@ const dom = {
   statStatus:        $('stat-status'),
   latencyChart:      $('latency-chart'),
   pingStartBtn:      $('ping-start-btn'),
-  pingStopBtn:       $('ping-stop-btn'),
-  diagLog:           $('diag-log'),
+  logoutBtn:         $('logout-btn'),
+  imageLightboxModal:$('image-lightbox-modal'),
+  closeLightboxBtn:  $('close-lightbox-btn'),
+  lightboxImg:       $('lightbox-img'),
 };
 
 // ── Helpers ──────────────────────────────────────────
@@ -245,8 +247,28 @@ dom.loginForm.addEventListener('submit', e => {
       loginBtn.disabled = true;
       loginBtn.textContent = 'กำลังเชื่อมต่อ... 🐾';
     }
+    localStorage.setItem('kuidi_username', name);
     socket.emit('login', name);
   }
+});
+
+// Auto login if username is saved in localStorage
+socket.on('connect', () => {
+  const savedName = localStorage.getItem('kuidi_username');
+  if (savedName && !me) {
+    socket.emit('login', savedName);
+  }
+});
+
+dom.logoutBtn?.addEventListener('click', () => {
+  localStorage.removeItem('kuidi_username');
+  location.reload();
+});
+
+// Lightbox modal close listeners
+dom.closeLightboxBtn?.addEventListener('click', () => setHidden(dom.imageLightboxModal, true));
+dom.imageLightboxModal?.addEventListener('click', e => {
+  if (e.target === dom.imageLightboxModal) setHidden(dom.imageLightboxModal, true);
 });
 
 socket.on('connect_error', () => {
@@ -264,6 +286,7 @@ socket.on('login_success', data => {
     loginBtn.textContent = 'เข้าร่วม KuiDi 🐾';
   }
   me = data.user;
+  localStorage.setItem('kuidi_username', me.username);
   setHidden(dom.loginScreen, true);
   dom.app.classList.remove('hidden');
 
@@ -542,6 +565,8 @@ function appendMessage(msg, isSelf) {
     `<div class="msg-sender-name">${escHtml(msg.senderName)}</div>`;
 
   let content = '';
+  let copyBtnHtml = '';
+
   if (msg.type === 'image') {
     content = `<img src="${msg.content}" class="msg-image" alt="${escHtml(msg.fileName || 'image')}" loading="lazy" />`;
   } else if (msg.type === 'file') {
@@ -551,16 +576,38 @@ function appendMessage(msg, isSelf) {
     </a>`;
   } else {
     content = escHtml(msg.content);
+    copyBtnHtml = `<button class="msg-copy-btn" title="คัดลอกข้อความ">
+      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+    </button>`;
   }
 
   li.innerHTML = `
     ${avatarEl}
     <div style="min-width:0">
       ${nameEl}
-      <div class="msg-bubble">${content}${delBtn}</div>
+      <div class="msg-bubble">${content}${copyBtnHtml}${delBtn}</div>
       <div class="msg-time" style="text-align:${isSelf ? 'right' : 'left'}">${fmtTime(msg.timestamp)}</div>
     </div>
   `;
+
+  // Copy button handler
+  li.querySelector('.msg-copy-btn')?.addEventListener('click', () => {
+    navigator.clipboard.writeText(msg.content).then(() => {
+      showToast('📋 คัดลอกข้อความแล้ว');
+    }).catch(() => {
+      showToast('⚠️ ไม่สามารถคัดลอกข้อความได้');
+    });
+  });
+
+  // Image lightbox handler
+  li.querySelector('.msg-image')?.addEventListener('click', () => {
+    const lightboxModal = document.getElementById('image-lightbox-modal');
+    const lightboxImg = document.getElementById('lightbox-img');
+    if (lightboxModal && lightboxImg) {
+      lightboxImg.src = msg.content;
+      setHidden(lightboxModal, false);
+    }
+  });
 
   li.querySelector('.msg-delete-btn')?.addEventListener('click', () => {
     socket.emit('delete_message', {
