@@ -13,6 +13,7 @@ let pendingFile   = null;
 let localStream   = null;
 let peerConn      = null;
 let callTarget    = null;
+let remoteAudio   = new Audio();
 let callTimerInterval = null;
 let callSeconds   = 0;
 let isMuted       = false;
@@ -709,7 +710,12 @@ socket.on('call_ended', () => { alert('วางสายแล้ว'); resetCa
 async function createPeerConnection(targetId, isCaller) {
   peerConn = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
   localStream?.getTracks().forEach(t => peerConn.addTrack(t, localStream));
-  peerConn.ontrack = e => { const a = new Audio(); a.srcObject = e.streams[0]; a.play().catch(() => {}); };
+  
+  peerConn.ontrack = e => { 
+    remoteAudio.srcObject = e.streams[0]; 
+    remoteAudio.play().catch(err => console.error("Audio play failed:", err)); 
+  };
+  
   peerConn.onicecandidate = e => { if (e.candidate) socket.emit('webrtc_signal', { targetId, signal: e.candidate }); };
   if (isCaller) {
     const offer = await peerConn.createOffer();
@@ -734,6 +740,9 @@ function resetCall() {
   clearInterval(callTimerInterval);
   peerConn?.close();
   localStream?.getTracks().forEach(t => t.stop());
+  remoteAudio.pause();
+  remoteAudio.srcObject = null;
+  
   peerConn = localStream = callTarget = null;
   callSeconds = 0; isMuted = false;
   dom.hudTimer.textContent = '00:00';
