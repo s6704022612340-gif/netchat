@@ -198,11 +198,69 @@ io.on('connection', socket => {
     });
 
     // ── WebRTC Voice Call Signaling ────────────────────────────
-    socket.on('call_user',    data => { const c = users[socket.id]; const t = users[data.targetId]; if (c && t) io.to(data.targetId).emit('incoming_call', { callerId: socket.id, callerName: c.username, callerColor: c.color }); });
-    socket.on('answer_call',  data => { if (users[data.callerId]) io.to(data.callerId).emit('call_accepted', { responderId: socket.id }); });
-    socket.on('reject_call',  data => { io.to(data.callerId).emit('call_rejected', { responderId: socket.id }); });
-    socket.on('end_call',     data => { if (data.targetId) io.to(data.targetId).emit('call_ended', { senderId: socket.id }); });
-    socket.on('webrtc_signal',data => { if (data.targetId) io.to(data.targetId).emit('webrtc_signal', { senderId: socket.id, signal: data.signal }); });
+    socket.on('call_user', data => {
+        const c = users[socket.id];
+        const t = users[data.targetId];
+        if (c && t) {
+            io.to(data.targetId).emit('incoming_call', { callerId: socket.id, callerName: c.username, callerColor: c.color });
+        }
+    });
+
+    socket.on('answer_call', data => {
+        const caller = users[data.callerId];
+        const responder = users[socket.id];
+        if (caller && responder) {
+            io.to(data.callerId).emit('call_accepted', { responderId: socket.id });
+            const now = new Date().toISOString();
+            const timeStr = new Date(now).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+            const logMsg = {
+                id: 'call_' + Date.now() + '_start',
+                type: 'call_start',
+                content: `📞 เริ่มต้นการโทร • ${timeStr}`,
+                timestamp: now
+            };
+            io.to(data.callerId).emit('receive_call_log', { ...logMsg, otherUserId: socket.id });
+            io.to(socket.id).emit('receive_call_log', { ...logMsg, otherUserId: data.callerId });
+        }
+    });
+
+    socket.on('reject_call', data => {
+        io.to(data.callerId).emit('call_rejected', { responderId: socket.id });
+        const now = new Date().toISOString();
+        const timeStr = new Date(now).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+        const logMsg = {
+            id: 'call_' + Date.now() + '_rej',
+            type: 'call_rejected',
+            content: `📵 ไม่ได้รับสาย / ปฏิเสธสาย • ${timeStr}`,
+            timestamp: now
+        };
+        io.to(data.callerId).emit('receive_call_log', { ...logMsg, otherUserId: socket.id });
+        io.to(socket.id).emit('receive_call_log', { ...logMsg, otherUserId: data.callerId });
+    });
+
+    socket.on('end_call', data => {
+        const targetId = data.targetId;
+        if (targetId) {
+            io.to(targetId).emit('call_ended', { senderId: socket.id });
+        }
+        const now = new Date().toISOString();
+        const timeStr = new Date(now).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+        const dur = data.durationFormatted || '00:00';
+        const logMsg = {
+            id: 'call_' + Date.now() + '_end',
+            type: 'call_end',
+            content: `📞 การโทรสิ้นสุดแล้ว (ระยะเวลา ${dur}) • ${timeStr}`,
+            timestamp: now
+        };
+        if (targetId) {
+            io.to(targetId).emit('receive_call_log', { ...logMsg, otherUserId: socket.id });
+            io.to(socket.id).emit('receive_call_log', { ...logMsg, otherUserId: targetId });
+        }
+    });
+
+    socket.on('webrtc_signal', data => {
+        if (data.targetId) io.to(data.targetId).emit('webrtc_signal', { senderId: socket.id, signal: data.signal });
+    });
 
     // ── Disconnect ─────────────────────────────────────────────
     socket.on('disconnect', () => {

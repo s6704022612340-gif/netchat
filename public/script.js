@@ -131,6 +131,24 @@ const fmtSize    = b => !b ? '' : b < 1024 ? b + ' B' : b < 1048576 ? (b/1024).t
 const scrollBot  = () => { dom.messagesContainer.scrollTop = dom.messagesContainer.scrollHeight; };
 const getRoomColor = id => roomColorMap[id] || '#8b5cf6';
 
+function showToast(msg, duration = 3000) {
+  const container = document.getElementById('toast-container') || (() => {
+    const c = document.createElement('div');
+    c.id = 'toast-container';
+    document.body.appendChild(c);
+    return c;
+  })();
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  container.appendChild(t);
+  requestAnimationFrame(() => t.classList.add('show'));
+  setTimeout(() => {
+    t.classList.remove('show');
+    setTimeout(() => t.remove(), 350);
+  }, duration);
+}
+
 function assignRoomColor(id) {
   if (id === 'global') return '#8b5cf6';
   if (!roomColorMap[id]) {
@@ -474,6 +492,20 @@ function appendSystemMsg(text) {
 }
 
 function appendMessage(msg, isSelf) {
+  if (msg.type === 'call_start' || msg.type === 'call_end' || msg.type === 'call_rejected') {
+    const li = document.createElement('li');
+    li.className = 'msg-row call-row';
+    li.dataset.msgId = msg.id;
+    li.innerHTML = `
+      <div class="call-log-pill ${msg.type}">
+        <span>${escHtml(msg.content)}</span>
+      </div>
+    `;
+    dom.messagesList.appendChild(li);
+    scrollBot();
+    return;
+  }
+
   const li = document.createElement('li');
   li.className = `msg-row ${isSelf ? 'self' : 'other'}`;
   li.dataset.msgId = msg.id;
@@ -543,6 +575,18 @@ socket.on('receive_private_message', msg => {
     appendMessage(msg, msg.senderId === socket.id);
   } else if (msg.senderId !== socket.id) {
     incrementUnread('user', otherId);
+  }
+});
+
+socket.on('receive_call_log', msg => {
+  const otherId = msg.otherUserId;
+  if (!otherId) return;
+  if (!privateHistories[otherId]) privateHistories[otherId] = [];
+  if (!privateHistories[otherId].some(m => m.id === msg.id)) {
+    privateHistories[otherId].push(msg);
+  }
+  if (currentTarget?.type === 'user' && currentTarget.id === otherId) {
+    appendMessage(msg, false);
   }
 });
 
@@ -841,7 +885,7 @@ socket.on('call_accepted', async ({ responderId }) => {
   if (callTarget?.id === responderId) await createPeerConnection(responderId, true);
 });
 
-socket.on('call_rejected', () => { alert('การโทรถูกปฏิเสธ'); resetCall(); });
+socket.on('call_rejected', () => { showToast('📵 การโทรถูกปฏิเสธ'); resetCall(); });
 
 socket.on('webrtc_signal', async ({ senderId, signal }) => {
   if (!peerConn) return;
@@ -857,7 +901,7 @@ socket.on('webrtc_signal', async ({ senderId, signal }) => {
   }
 });
 
-socket.on('call_ended', () => { alert('วางสายแล้ว'); resetCall(); });
+socket.on('call_ended', () => { showToast('📞 วางสายแล้ว'); resetCall(); });
 
 async function createPeerConnection(targetId, isCaller) {
   peerConn = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
