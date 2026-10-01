@@ -50,8 +50,6 @@ io.on('connection', socket => {
 
         broadcastUserList();
         broadcastRoomList();
-        const tag = isAdmin ? '[Admin]' : '';
-        socket.to('global').emit('system_message', { room: 'global', text: `${tag} ${name} เข้าร่วมเครือข่าย`.trim(), timestamp: new Date().toISOString() });
     });
 
     // ── Ping (Network Latency) ─────────────────────────────────
@@ -202,7 +200,6 @@ io.on('connection', socket => {
         delete users[socket.id];
         broadcastUserList();
         broadcastRoomList();
-        io.to('global').emit('system_message', { room: 'global', text: `📴 ${user.username} ตัดการเชื่อมต่อ`, timestamp: new Date().toISOString() });
     });
 });
 
