@@ -28,7 +28,7 @@ const rooms = {
 const roomMessages = { global: [] };
 const MSG_LIMIT = 100;
 
-const AVATAR_COLORS = ['#10B981','#3B82F6','#6366F1','#8B5CF6','#EC4899','#F59E0B','#14B8A6','#06b6d4'];
+const AVATAR_COLORS = ['#8B5CF6','#A78BFA','#7C3AED','#6366F1','#3B82F6','#EC4899','#F59E0B','#06B6D4'];
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 
 // ── Helpers ──────────────────────────────────────────────────

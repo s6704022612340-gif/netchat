@@ -42,10 +42,10 @@ const EMOJIS = [
   '🌈','🌙','☀️','❄️','🌊','🐱','🐶','🦊','🐸','🌸',
 ];
 
-// Room accent colors (cycles)
-const ROOM_COLORS = ['#10b981','#3b82f6','#8b5cf6','#f59e0b','#06b6d4','#ec4899','#14b8a6','#f97316'];
+// Room accent colors (purple pastel palette)
+const ROOM_COLORS = ['#8b5cf6', '#a78bfa', '#7c3aed', '#9333ea', '#6366f1', '#c084fc', '#a855f7', '#7e22ce'];
 let roomColorIdx = 0;
-const roomColorMap = {};  // roomId → color
+const roomColorMap = { global: '#8b5cf6' };  // roomId → color
 
 // ── DOM refs ─────────────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -130,9 +130,10 @@ const avatarCss  = (color, size = 36) => `background:${color};width:${size}px;he
 const fmtTime    = iso => new Date(iso).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
 const fmtSize    = b => !b ? '' : b < 1024 ? b + ' B' : b < 1048576 ? (b/1024).toFixed(1) + ' KB' : (b/1048576).toFixed(1) + ' MB';
 const scrollBot  = () => { dom.messagesContainer.scrollTop = dom.messagesContainer.scrollHeight; };
-const getRoomColor = id => roomColorMap[id] || '#10b981';
+const getRoomColor = id => roomColorMap[id] || '#8b5cf6';
 
 function assignRoomColor(id) {
+  if (id === 'global') return '#8b5cf6';
   if (!roomColorMap[id]) {
     roomColorMap[id] = ROOM_COLORS[roomColorIdx % ROOM_COLORS.length];
     roomColorIdx++;
@@ -355,7 +356,11 @@ function openChat(name, sub, color) {
   setHidden(dom.messagesContainer, false);
   setHidden(dom.chatInputArea, false);
 
-  dom.chatHeaderAvatar.style.cssText = avatarCss(color, 36);
+  if (currentTarget?.type === 'room') {
+    dom.chatHeaderAvatar.style.cssText = 'background: linear-gradient(135deg, #a78bfa, #7c3aed); width: 36px; height: 36px; line-height: 36px; border-radius: 50%; box-shadow: 0 2px 8px rgba(139,92,246,0.3);';
+  } else {
+    dom.chatHeaderAvatar.style.cssText = avatarCss(color || '#8b5cf6', 36);
+  }
   dom.chatHeaderAvatar.textContent   = initials(name);
   dom.chatHeaderName.textContent     = name;
   dom.chatHeaderSub.textContent      = sub;
@@ -421,7 +426,7 @@ function appendMessage(msg, isSelf) {
   const delBtn   = canDel ? `<button class="msg-delete-btn" title="ลบ">✕</button>` : '';
 
   const avatarEl = isSelf ? '' :
-    `<div class="avatar" style="${avatarCss(msg.senderColor || '#10b981', 28)}">${initials(msg.senderName)}</div>`;
+    `<div class="avatar" style="${avatarCss(msg.senderColor || '#8b5cf6', 28)}">${initials(msg.senderName)}</div>`;
 
   const nameEl = isSelf ? '' :
     `<div class="msg-sender-name">${escHtml(msg.senderName)}</div>`;
