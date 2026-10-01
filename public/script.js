@@ -265,10 +265,30 @@ dom.logoutBtn?.addEventListener('click', () => {
   location.reload();
 });
 
+function openLightbox(src) {
+  const modal = document.getElementById('image-lightbox-modal');
+  const img = document.getElementById('lightbox-img');
+  if (modal && img) {
+    img.src = src;
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+  }
+}
+
+function closeLightbox() {
+  const modal = document.getElementById('image-lightbox-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
+}
+
 // Lightbox modal close listeners
-dom.closeLightboxBtn?.addEventListener('click', () => setHidden(dom.imageLightboxModal, true));
+dom.closeLightboxBtn?.addEventListener('click', closeLightbox);
 dom.imageLightboxModal?.addEventListener('click', e => {
-  if (e.target === dom.imageLightboxModal) setHidden(dom.imageLightboxModal, true);
+  if (e.target === dom.imageLightboxModal || e.target.id === 'close-lightbox-btn') {
+    closeLightbox();
+  }
 });
 
 socket.on('connect_error', () => {
@@ -602,15 +622,11 @@ function appendMessage(msg, isSelf) {
   // Image lightbox handler
   const imgEl = li.querySelector('.msg-image');
   if (imgEl) {
-    imgEl.addEventListener('click', (e) => {
+    imgEl.style.cursor = 'pointer';
+    imgEl.onclick = (e) => {
       e.stopPropagation();
-      const lightboxModal = document.getElementById('image-lightbox-modal');
-      const lightboxImg = document.getElementById('lightbox-img');
-      if (lightboxModal && lightboxImg) {
-        lightboxImg.src = msg.content;
-        setHidden(lightboxModal, false);
-      }
-    });
+      openLightbox(msg.content);
+    };
   }
 
   li.querySelector('.msg-delete-btn')?.addEventListener('click', () => {
