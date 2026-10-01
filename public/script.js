@@ -267,27 +267,37 @@ dom.logoutBtn?.addEventListener('click', () => {
 
 function openLightbox(src) {
   const modal = document.getElementById('image-lightbox-modal');
-  const img = document.getElementById('lightbox-img');
-  if (modal && img) {
-    img.src = src;
-    modal.classList.remove('hidden');
-    modal.style.display = 'flex';
-  }
+  const img   = document.getElementById('lightbox-img');
+  if (!modal || !img) { console.warn('lightbox elements not found'); return; }
+  img.src = '';
+  img.src = src;
+  modal.style.cssText = 'display:flex !important; z-index:9999;';
+  modal.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
 }
 
 function closeLightbox() {
   const modal = document.getElementById('image-lightbox-modal');
-  if (modal) {
-    modal.classList.add('hidden');
-    modal.style.display = 'none';
-  }
+  const img   = document.getElementById('lightbox-img');
+  if (!modal) return;
+  modal.classList.add('hidden');
+  modal.style.cssText = '';
+  if (img) img.src = '';
+  document.body.style.overflow = '';
 }
 
-// Lightbox modal close listeners
+// Close on backdrop / close button
 dom.closeLightboxBtn?.addEventListener('click', closeLightbox);
 dom.imageLightboxModal?.addEventListener('click', e => {
-  if (e.target === dom.imageLightboxModal || e.target.id === 'close-lightbox-btn') {
-    closeLightbox();
+  if (e.target === dom.imageLightboxModal) closeLightbox();
+});
+
+// Global event delegation for image clicks (works even after re-render)
+document.addEventListener('click', e => {
+  const img = e.target.closest('.msg-image');
+  if (img) {
+    e.stopPropagation();
+    openLightbox(img.src);
   }
 });
 
@@ -619,15 +629,9 @@ function appendMessage(msg, isSelf) {
     });
   });
 
-  // Image lightbox handler
+  // Image lightbox: handled via global event delegation above
   const imgEl = li.querySelector('.msg-image');
-  if (imgEl) {
-    imgEl.style.cursor = 'pointer';
-    imgEl.onclick = (e) => {
-      e.stopPropagation();
-      openLightbox(msg.content);
-    };
-  }
+  if (imgEl) imgEl.style.cursor = 'pointer';
 
   li.querySelector('.msg-delete-btn')?.addEventListener('click', () => {
     socket.emit('delete_message', {

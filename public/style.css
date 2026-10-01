@@ -843,7 +843,34 @@ img { display: block; max-width: 100%; }
   background: rgba(0, 0, 0, 0.85) !important;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  cursor: zoom-out;
 }
 #image-lightbox-modal.hidden {
   display: none !important;
+}
+#lightbox-img {
+  cursor: default;
+  touch-action: pinch-zoom;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.msg-image {
+  cursor: pointer;
+  border-radius: 10px;
+  max-width: 240px;
+  max-height: 240px;
+  object-fit: cover;
+  display: block;
+  transition: opacity 0.2s;
+}
+.msg-image:hover { opacity: 0.85; }
+#close-lightbox-btn {
+  font-size: 20px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  padding: 0;
 }
