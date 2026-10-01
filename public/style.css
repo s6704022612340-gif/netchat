@@ -89,6 +89,8 @@ img { display: block; max-width: 100%; }
   opacity: 0;
   user-select: none;
   filter: blur(0px);
+  will-change: transform, opacity;
+  pointer-events: none;
 }
 @keyframes floatUp {
   0%   { transform: translateY(0) rotate(-5deg) scale(0.8); opacity: 0; }
@@ -101,33 +103,21 @@ img { display: block; max-width: 100%; }
 /* ════════════════ LOGIN ════════════════ */
 #login-screen { position: relative; }
 .login-card {
-  background: rgba(255,255,255,0.92);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1.5px solid rgba(167,139,250,0.25);
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1.5px solid var(--border);
   border-radius: 32px;
   padding: 48px 44px 44px;
   width: 400px;
-  box-shadow: 0 8px 48px rgba(139,92,246,0.18), 0 1.5px 4px rgba(139,92,246,0.08);
+  box-shadow: var(--shadow-md);
   animation: fadeUp .5s cubic-bezier(0.16,1,0.3,1);
   position: relative;
-  overflow: hidden;
   z-index: 1;
 }
 [data-theme="dark"] .login-card {
-  background: rgba(35,22,66,0.92);
-  border-color: rgba(167,139,250,0.2);
-}
-.login-card::before {
-  content: '';
-  position: absolute; top: 0; left: 0; right: 0; height: 4px;
-  background: linear-gradient(90deg, #a78bfa, #c084fc, #f0abfc, #818cf8);
-  border-radius: 32px 32px 0 0;
-  animation: shimmer 3s ease-in-out infinite;
-}
-@keyframes shimmer {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+  background: rgba(35,22,66,0.95);
+  border-color: var(--border);
 }
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(24px) scale(0.97); }

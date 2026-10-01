@@ -9,6 +9,17 @@ const io = new Server(server, { maxHttpBufferSize: 10 * 1024 * 1024 }); // 10MB
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+// ── Health Check / Keep-Alive Endpoints ────────────────────────
+app.get('/health', (req, res) => {
+    res.status(200).json({
+        status: 'ok',
+        uptime: Math.floor(process.uptime()),
+        users: Object.keys(users).length,
+        timestamp: new Date().toISOString()
+    });
+});
+app.get('/ping', (req, res) => res.status(200).send('pong'));
+
 // ── In-memory state ──────────────────────────────────────────
 const users = {};   // socketId → User object
 const rooms = {
@@ -204,4 +215,22 @@ io.on('connection', socket => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`🚀 NetChat running → http://localhost:${PORT}`));
+server.listen(PORT, () => {
+    console.log(`🚀 KuiDi running → http://localhost:${PORT}`);
+    
+    // Auto keep-alive for Render Free Tier (pings every 13 mins to prevent 15m idle shutdown)
+    const renderUrl = process.env.RENDER_EXTERNAL_URL;
+    if (renderUrl) {
+        const pingIntervalMs = 13 * 60 * 1000; // 13 minutes
+        console.log(`[Keep-Alive] Configured for ${renderUrl} every 13 minutes`);
+        setInterval(() => {
+            const url = `${renderUrl}/health`;
+            const requester = url.startsWith('https') ? require('https') : require('http');
+            requester.get(url, (res) => {
+                console.log(`[Keep-Alive] Pinged ${url} (status: ${res.statusCode})`);
+            }).on('error', (err) => {
+                console.warn(`[Keep-Alive] Ping error: ${err.message}`);
+            });
+        }, pingIntervalMs);
+    }
+});

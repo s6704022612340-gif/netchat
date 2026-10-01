@@ -4,7 +4,14 @@
 'use strict';
 
 // ── Socket ──────────────────────────────────────────
-const socket = io({ transports: ['websocket', 'polling'] });
+const socket = io({
+  transports: ['polling', 'websocket'],
+  reconnection: true,
+  reconnectionAttempts: 20,
+  reconnectionDelay: 800,
+  reconnectionDelayMax: 3000,
+  timeout: 15000
+});
 
 // ── State ────────────────────────────────────────────
 let me          = null;
@@ -170,10 +177,30 @@ dom.themeToggle.addEventListener('click', () => {
 dom.loginForm.addEventListener('submit', e => {
   e.preventDefault();
   const name = dom.usernameInput.value.trim();
-  if (name) socket.emit('login', name);
+  if (name) {
+    const loginBtn = $('login-btn');
+    if (loginBtn) {
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'กำลังเชื่อมต่อ... 🐾';
+    }
+    socket.emit('login', name);
+  }
+});
+
+socket.on('connect_error', () => {
+  const loginBtn = $('login-btn');
+  if (loginBtn && !me) {
+    loginBtn.disabled = false;
+    loginBtn.textContent = 'เข้าร่วม KuiDi 🐾';
+  }
 });
 
 socket.on('login_success', data => {
+  const loginBtn = $('login-btn');
+  if (loginBtn) {
+    loginBtn.disabled = false;
+    loginBtn.textContent = 'เข้าร่วม KuiDi 🐾';
+  }
   me = data.user;
   setHidden(dom.loginScreen, true);
   dom.app.classList.remove('hidden');
