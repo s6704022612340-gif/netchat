@@ -494,12 +494,34 @@ function appendSystemMsg(text) {
 function appendMessage(msg, isSelf) {
   if (msg.type === 'call_start' || msg.type === 'call_end' || msg.type === 'call_rejected') {
     const li = document.createElement('li');
-    li.className = 'msg-row call-row';
+    const isCaller = msg.senderId ? (msg.senderId === socket.id) : false;
+    li.className = `msg-row ${isCaller ? 'self' : 'other'} call-log-row`;
     li.dataset.msgId = msg.id;
+    
+    let iconSvg = '';
+    let titleText = '';
+    let badgeClass = msg.type;
+
+    if (msg.type === 'call_start') {
+      iconSvg = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.36 12a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 3.27 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 9.27a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21 16.92z"/></svg>`;
+      titleText = 'เริ่มต้นการโทร';
+    } else if (msg.type === 'call_end') {
+      iconSvg = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.36 12a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 3.27 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 9.27a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21 16.92z"/></svg>`;
+      titleText = 'การโทรด้วยเสียง';
+    } else {
+      iconSvg = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.42 19.42 0 0 1 4.36 12"/><line x1="23" y1="1" x2="1" y2="23"/></svg>`;
+      titleText = 'ไม่ได้รับสาย';
+    }
+
     li.innerHTML = `
-      <div class="call-log-pill ${msg.type}">
-        <span>${escHtml(msg.content)}</span>
+      <div class="call-msg-card ${badgeClass}">
+        <div class="call-msg-icon">${iconSvg}</div>
+        <div class="call-msg-info">
+          <div class="call-msg-title">${titleText}</div>
+          <div class="call-msg-sub">${escHtml(msg.content)}</div>
+        </div>
       </div>
+      <div class="msg-time">${fmtTime(msg.timestamp)}</div>
     `;
     dom.messagesList.appendChild(li);
     scrollBot();

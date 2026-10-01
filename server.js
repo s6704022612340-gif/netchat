@@ -216,7 +216,8 @@ io.on('connection', socket => {
             const logMsg = {
                 id: 'call_' + Date.now() + '_start',
                 type: 'call_start',
-                content: `📞 เริ่มต้นการโทร • ${timeStr}`,
+                content: `เริ่มต้นเมื่อ ${timeStr}`,
+                senderId: data.callerId,
                 timestamp: now
             };
             io.to(data.callerId).emit('receive_call_log', { ...logMsg, otherUserId: socket.id });
@@ -231,7 +232,8 @@ io.on('connection', socket => {
         const logMsg = {
             id: 'call_' + Date.now() + '_rej',
             type: 'call_rejected',
-            content: `📵 ไม่ได้รับสาย / ปฏิเสธสาย • ${timeStr}`,
+            content: `ปฏิเสธสาย • ${timeStr}`,
+            senderId: data.callerId,
             timestamp: now
         };
         io.to(data.callerId).emit('receive_call_log', { ...logMsg, otherUserId: socket.id });
@@ -249,7 +251,8 @@ io.on('connection', socket => {
         const logMsg = {
             id: 'call_' + Date.now() + '_end',
             type: 'call_end',
-            content: `📞 การโทรสิ้นสุดแล้ว (ระยะเวลา ${dur}) • ${timeStr}`,
+            content: `ระยะเวลาการโทร ${dur}`,
+            senderId: socket.id,
             timestamp: now
         };
         if (targetId) {
