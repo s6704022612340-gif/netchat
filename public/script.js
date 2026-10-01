@@ -950,7 +950,12 @@ function resetCall() {
 }
 
 dom.hangupBtn.addEventListener('click', () => {
-  if (callTarget) socket.emit('end_call', { targetId: callTarget.id });
+  if (callTarget) {
+    const m = String(Math.floor(callSeconds / 60)).padStart(2, '0');
+    const s = String(callSeconds % 60).padStart(2, '0');
+    const durationFormatted = `${m}:${s}`;
+    socket.emit('end_call', { targetId: callTarget.id, durationFormatted });
+  }
   resetCall();
 });
 
