@@ -512,15 +512,46 @@ dom.fileInput.addEventListener('change', () => {
   const file = dom.fileInput.files[0];
   if (!file) return;
   if (file.size > 10 * 1024 * 1024) { alert('ไฟล์ใหญ่เกิน 10 MB'); return; }
+  
+  const isImage = file.type.startsWith('image/');
   const reader = new FileReader();
+  
   reader.onload = e => {
-    pendingFile = { name: file.name, size: file.size, data: e.target.result, type: file.type };
-    const isImage = file.type.startsWith('image/');
-    dom.previewContent.innerHTML = isImage
-      ? `<img src="${pendingFile.data}" style="max-height:60px;border-radius:8px" />`
-      : `${escHtml(file.name)} (${fmtSize(file.size)})`;
-    setHidden(dom.attachmentPreview, false);
+    if (isImage) {
+      // Compress Image using Canvas
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const MAX_WIDTH = 800; // ย่อรูปไม่ให้กว้างเกิน 800px
+        
+        if (width > MAX_WIDTH) {
+          height = Math.round((height * MAX_WIDTH) / width);
+          width = MAX_WIDTH;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // แปลงกลับเป็น Base64 คุณภาพ 70%
+        const compressedData = canvas.toDataURL('image/jpeg', 0.7);
+        
+        pendingFile = { name: file.name, size: Math.round(compressedData.length * 0.75), data: compressedData, type: 'image/jpeg' };
+        dom.previewContent.innerHTML = `<img src="${compressedData}" style="max-height:60px;border-radius:8px" />`;
+        setHidden(dom.attachmentPreview, false);
+      };
+      img.src = e.target.result;
+    } else {
+      // ไม่ใช่รูปภาพ ให้ทำงานตามปกติ
+      pendingFile = { name: file.name, size: file.size, data: e.target.result, type: file.type };
+      dom.previewContent.innerHTML = `${escHtml(file.name)} (${fmtSize(file.size)})`;
+      setHidden(dom.attachmentPreview, false);
+    }
   };
+  
   reader.readAsDataURL(file);
   dom.fileInput.value = '';
 });
