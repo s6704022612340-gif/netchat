@@ -1,0 +1,21 @@
+{
+  "name": "netchat",
+  "version": "1.0.0",
+  "description": "NetChat — Real-Time Messenger built with Node.js, Express and Socket.io",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["chat", "socket.io", "realtime"],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^5.2.1",
+    "socket.io": "^4.8.4"
+  }
+}
