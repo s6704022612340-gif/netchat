@@ -13,22 +13,35 @@
 
 <!-- ═══════════════════ LOGIN ═══════════════════ -->
 <div id="login-screen" class="screen">
+  <!-- Floating BG elements -->
+  <div class="bg-float">
+    <span class="float-cat" style="left:8%;animation-delay:0s;font-size:36px">🐱</span>
+    <span class="float-cat" style="left:20%;animation-delay:1.2s;font-size:24px">❤️</span>
+    <span class="float-cat" style="left:35%;animation-delay:0.5s;font-size:28px">🐾</span>
+    <span class="float-cat" style="left:55%;animation-delay:1.8s;font-size:32px">🐈</span>
+    <span class="float-cat" style="left:70%;animation-delay:0.8s;font-size:20px">✨</span>
+    <span class="float-cat" style="left:82%;animation-delay:2.1s;font-size:30px">💜</span>
+    <span class="float-cat" style="left:90%;animation-delay:0.3s;font-size:26px">🐱</span>
+    <span class="float-cat" style="left:48%;animation-delay:2.5s;font-size:22px">🌸</span>
+    <span class="float-cat" style="left:63%;animation-delay:1.5s;font-size:18px">🐾</span>
+    <span class="float-cat" style="left:14%;animation-delay:3s;font-size:28px">💫</span>
+  </div>
+
   <div class="login-card">
     <div class="login-logo">
-      <img src="logo.png" width="64" height="64" alt="KuiDi Logo" style="border-radius:14px;box-shadow:0 4px 12px rgba(0,0,0,0.1);" />
-      <span>KuiDi</span>
+      <img src="logo.png" alt="KuiDi Logo" class="login-logo-img" />
     </div>
     <p class="login-subtitle">ระบบสื่อสารแบบ Real-Time</p>
     <form id="login-form">
       <div class="field-wrap">
         <label for="username-input">ชื่อผู้ใช้</label>
-        <input id="username-input" type="text" maxlength="25" autocomplete="off" required />
+        <input id="username-input" type="text" maxlength="25" autocomplete="off" required placeholder="ใส่ชื่อของคุณ..." />
       </div>
-      <button type="submit" id="login-btn" class="btn-primary">เข้าร่วม KuiDi</button>
+      <button type="submit" id="login-btn" class="btn-primary">เข้าร่วม KuiDi 🐾</button>
     </form>
-
   </div>
 </div>
+
 
 <!-- ═══════════════════ MAIN APP ═══════════════════ -->
 <div id="app" class="hidden">
