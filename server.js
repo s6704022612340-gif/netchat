@@ -105,8 +105,9 @@ io.on('connection', socket => {
         socket.join(roomId);
         room.members = [...new Set([...room.members, socket.id])];
         broadcastRoomList();
-        socket.emit('room_history', { roomId, messages: (roomMessages[roomId] || []).slice(-50) });
-        cb?.({ success: true });
+        const history = (roomMessages[roomId] || []).slice(-50);
+        socket.emit('room_history', { roomId, messages: history });
+        cb?.({ success: true, history, roomId });
     });
 
     // ── Room Message ───────────────────────────────────────────

@@ -28,7 +28,9 @@ let pingInterval  = null;
 
 const rttHistory       = [];
 const MAX_RTT_POINTS   = 30;
-const privateHistories = {};   // targetUserId → [msg]
+const roomHistories    = { global: [] }; // roomId → [msg]
+const privateHistories = {};             // targetUserId → [msg]
+const unreadCounts     = {};             // 'room:<id>' or 'user:<id>' → count
 let allRooms = [];
 let allUsers = [];
 
@@ -58,10 +60,7 @@ const dom = {
   iconSun:           $('icon-sun'),
   iconMoon:          $('icon-moon'),
   searchInput:       $('search-input'),
-  tabRooms:          $('tab-rooms'),
-  tabUsers:          $('tab-users'),
-  tabContentRooms:   $('tab-content-rooms'),
-  tabContentUsers:   $('tab-content-users'),
+  onlineCount:       $('online-count'),
   roomList:          $('room-list'),
   userList:          $('user-list'),
   adminBadge:        $('admin-badge'),
@@ -153,6 +152,50 @@ function roomSvg(color) {
 // Trash SVG
 const svgTrash = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>`;
 
+// ── Unread Badge Helpers ─────────────────────────────
+const getUnreadKey = (type, id) => `${type}:${id}`;
+
+function incrementUnread(type, id) {
+  const key = getUnreadKey(type, id);
+  unreadCounts[key] = (unreadCounts[key] || 0) + 1;
+  updateUnreadBadge(type, id);
+}
+
+function clearUnread(type, id) {
+  const key = getUnreadKey(type, id);
+  if (unreadCounts[key]) {
+    unreadCounts[key] = 0;
+    updateUnreadBadge(type, id);
+  }
+}
+
+function updateUnreadBadge(type, id) {
+  const key = getUnreadKey(type, id);
+  const count = unreadCounts[key] || 0;
+  const selector = type === 'room' ? `.room-item[data-id="${id}"]` : `.user-item[data-id="${id}"]`;
+  const el = document.querySelector(selector);
+  if (!el) return;
+  let badge = el.querySelector('.unread-badge');
+  if (count > 0) {
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'unread-badge';
+      if (type === 'room') {
+        const delBtn = el.querySelector('.delete-room-item-btn');
+        if (delBtn) el.insertBefore(badge, delBtn);
+        else el.appendChild(badge);
+      } else {
+        const dot = el.querySelector('.user-online-dot');
+        if (dot) el.insertBefore(badge, dot);
+        else el.appendChild(badge);
+      }
+    }
+    badge.textContent = count > 99 ? '99+' : count;
+  } else {
+    badge?.remove();
+  }
+}
+
 // ════════════════════════════════════════════════════
 // ── Theme Toggle ─────────────────────────────────────
 // ════════════════════════════════════════════════════
@@ -212,9 +255,9 @@ socket.on('login_success', data => {
   if (me.isAdmin) setHidden(dom.adminBadge, false);
 
   buildEmojiDrawer();
+  roomHistories['global'] = data.history || [];
   renderRooms(data.rooms);
   renderUsers(data.users);
-  loadRoomHistory('global', data.history);
   selectRoom('global', 'Global Lounge', assignRoomColor('global'));
 });
 
@@ -229,20 +272,6 @@ dom.searchInput.addEventListener('input', () => {
 });
 
 // ════════════════════════════════════════════════════
-// ── Tabs ─────────────────────────────────────────────
-// ════════════════════════════════════════════════════
-dom.tabRooms.addEventListener('click', () => switchTab('rooms'));
-dom.tabUsers.addEventListener('click', () => switchTab('users'));
-
-function switchTab(tab) {
-  const isRooms = tab === 'rooms';
-  dom.tabRooms.classList.toggle('active', isRooms);
-  dom.tabUsers.classList.toggle('active', !isRooms);
-  setHidden(dom.tabContentRooms, !isRooms);
-  setHidden(dom.tabContentUsers, isRooms);
-}
-
-// ════════════════════════════════════════════════════
 // ── Render Rooms ─────────────────────────────────────
 // ════════════════════════════════════════════════════
 function renderRooms(rooms) {
@@ -254,6 +283,9 @@ function renderRooms(rooms) {
     const color   = assignRoomColor(r.id);
     const canDel  = me && (me.isAdmin || r.creatorId === socket.id) && r.id !== 'global';
     const isActive = currentTarget?.type === 'room' && currentTarget.id === r.id;
+    const unreadKey = getUnreadKey('room', r.id);
+    const unread = unreadCounts[unreadKey] || 0;
+    const unreadHtml = unread > 0 ? `<span class="unread-badge">${unread > 99 ? '99+' : unread}</span>` : '';
 
     const li = document.createElement('li');
     li.className = 'room-item' + (isActive ? ' active' : '');
@@ -265,10 +297,11 @@ function renderRooms(rooms) {
     
     li.innerHTML = `
       ${roomSvg(color)}
-      <div style="min-width:0">
+      <div style="flex:1;min-width:0">
         <div class="room-name" style="display:flex;align-items:center;">${escHtml(r.name)}${lockIcon}</div>
         <div class="room-sub">${r.members?.length ?? 0} สมาชิก</div>
       </div>
+      ${unreadHtml}
       ${canDel ? `<button class="delete-room-item-btn" data-room="${r.id}" title="ลบกลุ่ม">${svgTrash}</button>` : ''}
     `;
 
@@ -294,9 +327,14 @@ function renderUsers(users) {
   const q  = dom.searchInput.value.trim().toLowerCase();
   dom.userList.innerHTML = '';
 
-  users.forEach(u => {
-    if (u.id === socket.id) return;
+  const otherUsers = users.filter(u => u.id !== socket.id);
+  if (dom.onlineCount) dom.onlineCount.textContent = otherUsers.length;
+
+  otherUsers.forEach(u => {
     const isActive = currentTarget?.type === 'user' && currentTarget.id === u.id;
+    const unreadKey = getUnreadKey('user', u.id);
+    const unread = unreadCounts[unreadKey] || 0;
+    const unreadHtml = unread > 0 ? `<span class="unread-badge">${unread > 99 ? '99+' : unread}</span>` : '';
 
     const li = document.createElement('li');
     li.className = 'user-item' + (isActive ? ' active' : '');
@@ -306,9 +344,10 @@ function renderUsers(users) {
 
     li.innerHTML = `
       <div class="avatar" style="${avatarCss(u.color, 36)}">${initials(u.username)}</div>
-      <div style="min-width:0">
+      <div style="flex:1;min-width:0">
         <div class="room-name">${escHtml(u.username)}${u.isAdmin ? ' <span style="font-size:10px;color:var(--danger);font-weight:700">ADMIN</span>' : ''}</div>
       </div>
+      ${unreadHtml}
       <div class="user-online-dot"></div>
     `;
     li.addEventListener('click', () => selectUser(u.id, u.username, u.color));
@@ -322,26 +361,39 @@ socket.on('user_list', users => renderUsers(users));
 // ── Select Room / User ───────────────────────────────
 // ════════════════════════════════════════════════════
 function selectRoom(id, name, color) {
+  currentTarget = { type: 'room', id, name, color };
+  clearUnread('room', id);
+
+  const room   = allRooms.find(r => r.id === id);
+  const canDel = me && (me.isAdmin || room?.creatorId === socket.id) && id !== 'global';
+
+  openChat(name, 'ห้องแชทกลุ่ม', color);
+  setHidden(dom.callBtn, true);
+  setHidden(dom.deleteRoomBtn, !canDel);
+  updateSidebarActive();
+  dom.sidebar.classList.add('hide-mobile');
+
+  // Immediately render cached messages for this room
+  renderRoomHistory(id);
+
+  // Request room join and fetch latest messages
   socket.emit('join_room', id, res => {
     if (res && !res.success) {
       alert(res.error);
       return;
     }
-    currentTarget = { type: 'room', id, name, color };
-    
-    const room   = allRooms.find(r => r.id === id);
-    const canDel = me && (me.isAdmin || room?.creatorId === socket.id) && id !== 'global';
-
-    openChat(name, 'ห้องแชทกลุ่ม', color);
-    setHidden(dom.callBtn, true);
-    setHidden(dom.deleteRoomBtn, !canDel);
-    updateSidebarActive();
-    dom.sidebar.classList.add('hide-mobile');
+    if (res && res.history) {
+      roomHistories[id] = res.history;
+      if (currentTarget?.type === 'room' && currentTarget.id === id) {
+        renderRoomHistory(id);
+      }
+    }
   });
 }
 
 function selectUser(id, name, color) {
   currentTarget = { type: 'user', id, name, color };
+  clearUnread('user', id);
   openChat(name, 'ข้อความส่วนตัว', color);
   setHidden(dom.callBtn, false);
   setHidden(dom.deleteRoomBtn, true);
@@ -384,20 +436,24 @@ dom.mobileBackBtn?.addEventListener('click', () => {
 // ════════════════════════════════════════════════════
 // ── Room History ─────────────────────────────────────
 // ════════════════════════════════════════════════════
+function renderRoomHistory(roomId) {
+  dom.messagesList.innerHTML = '';
+  const msgs = roomHistories[roomId] || [];
+  msgs.forEach(appendRoomMessage);
+  scrollBot();
+}
+
 function loadRoomHistory(roomId, msgs) {
-  if (!msgs?.length) return;
+  roomHistories[roomId] = msgs || [];
   if (currentTarget?.type === 'room' && currentTarget.id === roomId) {
-    dom.messagesList.innerHTML = '';
-    msgs.forEach(appendRoomMessage);
-    scrollBot();
+    renderRoomHistory(roomId);
   }
 }
 
 socket.on('room_history', data => {
+  roomHistories[data.roomId] = data.messages || [];
   if (currentTarget?.type === 'room' && currentTarget.id === data.roomId) {
-    dom.messagesList.innerHTML = '';
-    data.messages.forEach(appendRoomMessage);
-    scrollBot();
+    renderRoomHistory(data.roomId);
   }
 });
 
@@ -466,17 +522,27 @@ function appendMessage(msg, isSelf) {
 }
 
 socket.on('receive_room_message', msg => {
+  if (!roomHistories[msg.roomId]) roomHistories[msg.roomId] = [];
+  if (!roomHistories[msg.roomId].some(m => m.id === msg.id)) {
+    roomHistories[msg.roomId].push(msg);
+  }
   if (currentTarget?.type === 'room' && currentTarget.id === msg.roomId) {
     appendRoomMessage(msg);
+  } else {
+    incrementUnread('room', msg.roomId);
   }
 });
 
 socket.on('receive_private_message', msg => {
   const otherId = msg.senderId === socket.id ? msg.targetId : msg.senderId;
   if (!privateHistories[otherId]) privateHistories[otherId] = [];
-  privateHistories[otherId].push(msg);
+  if (!privateHistories[otherId].some(m => m.id === msg.id)) {
+    privateHistories[otherId].push(msg);
+  }
   if (currentTarget?.type === 'user' && currentTarget.id === otherId) {
     appendMessage(msg, msg.senderId === socket.id);
+  } else if (msg.senderId !== socket.id) {
+    incrementUnread('user', otherId);
   }
 });
 
@@ -486,7 +552,13 @@ function renderPrivateHistory(userId) {
   scrollBot();
 }
 
-socket.on('message_deleted', ({ messageId }) => {
+socket.on('message_deleted', ({ messageId, roomId }) => {
+  if (roomId && roomHistories[roomId]) {
+    roomHistories[roomId] = roomHistories[roomId].filter(m => m.id !== messageId);
+  }
+  Object.keys(privateHistories).forEach(uid => {
+    privateHistories[uid] = privateHistories[uid].filter(m => m.id !== messageId);
+  });
   const el = dom.messagesList.querySelector(`[data-msg-id="${messageId}"]`);
   if (el) {
     el.querySelector('.msg-bubble').innerHTML = '<em style="opacity:.45;font-size:13px">ลบข้อความแล้ว</em>';
@@ -495,8 +567,19 @@ socket.on('message_deleted', ({ messageId }) => {
 });
 
 socket.on('system_message', msg => {
+  const sysObj = { type: 'system', content: msg.text, timestamp: msg.timestamp, roomId: msg.room };
+  if (!roomHistories[msg.room]) roomHistories[msg.room] = [];
+  roomHistories[msg.room].push(sysObj);
   if (currentTarget?.type === 'room' && currentTarget.id === msg.room) {
     appendSystemMsg(msg.text);
+  }
+});
+
+socket.on('room_deleted', ({ roomId }) => {
+  delete roomHistories[roomId];
+  delete unreadCounts[getUnreadKey('room', roomId)];
+  if (currentTarget?.type === 'room' && currentTarget.id === roomId) {
+    selectRoom('global', 'Global Lounge', assignRoomColor('global'));
   }
 });
 

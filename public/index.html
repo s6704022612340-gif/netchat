@@ -75,16 +75,11 @@
       <input id="search-input" type="text" placeholder="ค้นหาผู้ใช้ / ห้อง…" />
     </div>
 
-    <!-- Tabs -->
-    <div class="sidebar-tabs">
-      <button class="tab-btn active" data-tab="rooms" id="tab-rooms">ห้องแชท</button>
-      <button class="tab-btn" data-tab="users" id="tab-users">ออนไลน์</button>
-    </div>
-
-    <!-- Rooms Tab -->
-    <div id="tab-content-rooms" class="tab-content">
+    <!-- Unified Sidebar List (Rooms & Users merged) -->
+    <div class="sidebar-unified-list">
+      <!-- Rooms Section -->
       <div class="tab-section-header">
-        <span>ห้องทั้งหมด</span>
+        <span>ห้องแชท</span>
         <button id="create-room-btn" class="btn-icon-round" title="สร้างกลุ่มใหม่">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -92,10 +87,14 @@
         </button>
       </div>
       <ul id="room-list"></ul>
-    </div>
 
-    <!-- Users Tab -->
-    <div id="tab-content-users" class="tab-content hidden">
+      <!-- Divider -->
+      <div class="sidebar-section-divider"></div>
+
+      <!-- Users Section -->
+      <div class="tab-section-header">
+        <span>ผู้ใช้ออนไลน์ (<span id="online-count">0</span>)</span>
+      </div>
       <ul id="user-list"></ul>
     </div>
 
