@@ -87,6 +87,8 @@ const dom = {
   createRoomForm:    $('create-room-form'),
   roomNameInput:     $('room-name-input'),
   cancelCreateRoom:  $('cancel-create-room'),
+  roomPrivateCheckbox:$('room-private-checkbox'),
+  roomInviteList:    $('room-invite-list'),
   incomingCallModal: $('incoming-call-modal'),
   callerAvatar:      $('caller-avatar'),
   callerName:        $('caller-name'),
@@ -231,10 +233,12 @@ function renderRooms(rooms) {
     li.dataset.name = r.name;
     if (q && !r.name.toLowerCase().includes(q)) li.classList.add('hidden');
 
+    const lockIcon = r.isPrivate ? `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="margin-left:5px;opacity:0.6;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>` : '';
+    
     li.innerHTML = `
       ${roomSvg(color)}
       <div style="min-width:0">
-        <div class="room-name">${escHtml(r.name)}</div>
+        <div class="room-name" style="display:flex;align-items:center;">${escHtml(r.name)}${lockIcon}</div>
         <div class="room-sub">${r.members?.length ?? 0} สมาชิก</div>
       </div>
       ${canDel ? `<button class="delete-room-item-btn" data-room="${r.id}" title="ลบกลุ่ม">${svgTrash}</button>` : ''}
@@ -290,17 +294,22 @@ socket.on('user_list', users => renderUsers(users));
 // ── Select Room / User ───────────────────────────────
 // ════════════════════════════════════════════════════
 function selectRoom(id, name, color) {
-  currentTarget = { type: 'room', id, name, color };
-  socket.emit('join_room', id);
+  socket.emit('join_room', id, res => {
+    if (res && !res.success) {
+      alert(res.error);
+      return;
+    }
+    currentTarget = { type: 'room', id, name, color };
+    
+    const room   = allRooms.find(r => r.id === id);
+    const canDel = me && (me.isAdmin || room?.creatorId === socket.id) && id !== 'global';
 
-  const room   = allRooms.find(r => r.id === id);
-  const canDel = me && (me.isAdmin || room?.creatorId === socket.id) && id !== 'global';
-
-  openChat(name, 'ห้องแชทกลุ่ม', color);
-  setHidden(dom.callBtn, true);
-  setHidden(dom.deleteRoomBtn, !canDel);
-  updateSidebarActive();
-  dom.sidebar.classList.add('hide-mobile');
+    openChat(name, 'ห้องแชทกลุ่ม', color);
+    setHidden(dom.callBtn, true);
+    setHidden(dom.deleteRoomBtn, !canDel);
+    updateSidebarActive();
+    dom.sidebar.classList.add('hide-mobile');
+  });
 }
 
 function selectUser(id, name, color) {
@@ -611,7 +620,28 @@ document.addEventListener('click', e => {
 // ════════════════════════════════════════════════════
 // ── Create / Delete Room ──────────────────────────────
 // ════════════════════════════════════════════════════
-dom.createRoomBtn.addEventListener('click',    () => setHidden(dom.createRoomModal, false));
+dom.createRoomBtn.addEventListener('click', () => {
+  setHidden(dom.createRoomModal, false);
+  dom.roomPrivateCheckbox.checked = false;
+  setHidden(dom.roomInviteList, true);
+  
+  dom.roomInviteList.innerHTML = '';
+  allUsers.forEach(u => {
+    if (u.id === socket.id) return;
+    dom.roomInviteList.innerHTML += `
+      <label style="display:flex;align-items:center;gap:8px;padding:6px;cursor:pointer;font-size:13px;border-radius:6px;transition:background 0.2s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'">
+        <input type="checkbox" class="invite-checkbox" value="${u.id}" style="width:14px;height:14px;" />
+        <div class="avatar" style="${avatarCss(u.color, 20)};font-size:10px;">${initials(u.username)}</div>
+        ${escHtml(u.username)}
+      </label>
+    `;
+  });
+});
+
+dom.roomPrivateCheckbox.addEventListener('change', e => {
+  setHidden(dom.roomInviteList, !e.target.checked);
+});
+
 dom.cancelCreateRoom.addEventListener('click', () => setHidden(dom.createRoomModal, true));
 dom.createRoomModal.addEventListener('click',  e => { if (e.target === dom.createRoomModal) setHidden(dom.createRoomModal, true); });
 
@@ -619,7 +649,14 @@ dom.createRoomForm.addEventListener('submit', e => {
   e.preventDefault();
   const name = dom.roomNameInput.value.trim();
   if (!name) return;
-  socket.emit('create_room', name, res => {
+  
+  const isPrivate = dom.roomPrivateCheckbox.checked;
+  const allowedUserIds = [];
+  if (isPrivate) {
+    document.querySelectorAll('.invite-checkbox:checked').forEach(cb => allowedUserIds.push(cb.value));
+  }
+
+  socket.emit('create_room', { name, isPrivate, allowedUserIds }, res => {
     if (res?.success) {
       setHidden(dom.createRoomModal, true);
       dom.roomNameInput.value = '';

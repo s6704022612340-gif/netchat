@@ -213,6 +213,13 @@
         <label for="room-name-input">ชื่อกลุ่ม</label>
         <input id="room-name-input" type="text" maxlength="30" required />
       </div>
+      <div class="field-wrap" style="flex-direction:row;align-items:center;margin-top:10px;">
+        <input type="checkbox" id="room-private-checkbox" style="width:16px;height:16px;" />
+        <label for="room-private-checkbox" style="margin-bottom:0;cursor:pointer;">ตั้งเป็นกลุ่มส่วนตัว (เลือกระบุผู้เข้าร่วม)</label>
+      </div>
+      <div id="room-invite-list" class="hidden" style="max-height:150px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:16px;">
+         <!-- checkboxes for users -->
+      </div>
       <div class="modal-actions">
         <button type="button" id="cancel-create-room" class="btn-ghost">ยกเลิก</button>
         <button type="submit" class="btn-primary">สร้าง</button>

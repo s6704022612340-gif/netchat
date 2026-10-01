@@ -60,14 +60,19 @@ io.on('connection', socket => {
     });
 
     // ── Create Room ────────────────────────────────────────────
-    socket.on('create_room', (name, cb) => {
+    socket.on('create_room', (data, cb) => {
         const user = users[socket.id];
         if (!user) return;
+        
+        const name = typeof data === 'string' ? data : data.name;
+        const isPrivate = data.isPrivate || false;
+        const allowedUsers = data.allowedUserIds || [];
+        
         const roomName = String(name || '').trim().slice(0, 30);
         if (!roomName) return cb?.({ success: false, error: 'กรุณาใส่ชื่อกลุ่ม' });
 
         const roomId = 'room_' + Date.now();
-        rooms[roomId] = { id: roomId, name: roomName, creator: user.username, creatorId: socket.id, members: [socket.id] };
+        rooms[roomId] = { id: roomId, name: roomName, creator: user.username, creatorId: socket.id, members: [socket.id], isPrivate, allowedUsers };
         roomMessages[roomId] = [];
 
         socket.join(roomId);
@@ -77,13 +82,22 @@ io.on('connection', socket => {
     });
 
     // ── Join Room ──────────────────────────────────────────────
-    socket.on('join_room', roomId => {
+    socket.on('join_room', (roomId, cb) => {
         const user = users[socket.id];
-        if (!user || !rooms[roomId]) return;
+        const room = rooms[roomId];
+        if (!user || !room) return cb?.({ success: false, error: 'ไม่พบห้องนี้' });
+        
+        if (room.isPrivate && room.creatorId !== socket.id && !user.isAdmin) {
+            if (!room.allowedUsers || !room.allowedUsers.includes(socket.id)) {
+                return cb?.({ success: false, error: 'ห้องนี้เป็นห้องส่วนตัว คุณไม่มีสิทธิ์เข้าร่วม' });
+            }
+        }
+
         socket.join(roomId);
-        rooms[roomId].members = [...new Set([...rooms[roomId].members, socket.id])];
+        room.members = [...new Set([...room.members, socket.id])];
         broadcastRoomList();
         socket.emit('room_history', { roomId, messages: (roomMessages[roomId] || []).slice(-50) });
+        cb?.({ success: true });
     });
 
     // ── Room Message ───────────────────────────────────────────
