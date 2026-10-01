@@ -135,7 +135,7 @@ function assignRoomColor(id) {
 
 // Room SVG icon
 function roomSvg(color) {
-  return `<div class="room-icon" style="background:${color}">
+  return `<div class="room-icon">
     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
     </svg>
