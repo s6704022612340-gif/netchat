@@ -211,7 +211,17 @@ io.on('connection', socket => {
     socket.on('call_user', data => {
         const c = users[socket.id];
         const t = users[data.targetId];
-        if (c && t) {
+        if (!t) {
+            socket.emit('call_rejected', { responderId: data.targetId, reason: 'offline' });
+            return;
+        }
+        if (t.activeCallWith) {
+            socket.emit('call_rejected', { responderId: data.targetId, reason: 'busy' });
+            return;
+        }
+        if (c) {
+            c.callingId = data.targetId;
+            t.ringingFromId = socket.id;
             io.to(data.targetId).emit('incoming_call', { callerId: socket.id, callerName: c.username, callerColor: c.color });
         }
     });
@@ -220,6 +230,11 @@ io.on('connection', socket => {
         const caller = users[data.callerId];
         const responder = users[socket.id];
         if (caller && responder) {
+            caller.activeCallWith = socket.id;
+            responder.activeCallWith = data.callerId;
+            caller.callingId = null;
+            responder.ringingFromId = null;
+
             io.to(data.callerId).emit('call_accepted', { responderId: socket.id });
             const now = new Date().toISOString();
             const timeStr = new Date(now).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
@@ -236,7 +251,12 @@ io.on('connection', socket => {
     });
 
     socket.on('reject_call', data => {
-        io.to(data.callerId).emit('call_rejected', { responderId: socket.id });
+        const caller = users[data.callerId];
+        const responder = users[socket.id];
+        if (caller) caller.callingId = null;
+        if (responder) responder.ringingFromId = null;
+
+        io.to(data.callerId).emit('call_rejected', { responderId: socket.id, reason: data.reason });
         const now = new Date().toISOString();
         const timeStr = new Date(now).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
         const logMsg = {
@@ -252,6 +272,18 @@ io.on('connection', socket => {
 
     socket.on('end_call', data => {
         const targetId = data.targetId;
+        const caller = users[socket.id];
+        const target = targetId ? users[targetId] : null;
+
+        if (caller) {
+            caller.activeCallWith = null;
+            caller.callingId = null;
+        }
+        if (target) {
+            target.activeCallWith = null;
+            target.ringingFromId = null;
+        }
+
         if (targetId) {
             io.to(targetId).emit('call_ended', { senderId: socket.id });
         }
@@ -279,6 +311,21 @@ io.on('connection', socket => {
     socket.on('disconnect', () => {
         const user = users[socket.id];
         if (!user) return;
+
+        if (user.activeCallWith) {
+            io.to(user.activeCallWith).emit('call_ended', { senderId: socket.id });
+            const partner = users[user.activeCallWith];
+            if (partner) partner.activeCallWith = null;
+        } else if (user.callingId) {
+            io.to(user.callingId).emit('call_ended', { senderId: socket.id });
+            const partner = users[user.callingId];
+            if (partner) partner.ringingFromId = null;
+        } else if (user.ringingFromId) {
+            io.to(user.ringingFromId).emit('call_rejected', { responderId: socket.id, reason: 'offline' });
+            const partner = users[user.ringingFromId];
+            if (partner) partner.callingId = null;
+        }
+
         Object.values(rooms).forEach(r => { r.members = r.members.filter(m => m !== socket.id); });
         delete users[socket.id];
         broadcastUserList();

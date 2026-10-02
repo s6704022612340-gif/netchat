@@ -20,7 +20,10 @@ let pendingFile   = null;
 let localStream   = null;
 let peerConn      = null;
 let callTarget    = null;
-let remoteAudio   = new Audio();
+let remoteAudio       = null;
+let pendingCandidates = [];
+let earlySignals      = [];
+let callStarted       = false;
 let callTimerInterval = null;
 let callSeconds   = 0;
 let isMuted       = false;
@@ -121,6 +124,7 @@ const dom = {
   imageLightboxModal:$('image-lightbox-modal'),
   closeLightboxBtn:  $('close-lightbox-btn'),
   lightboxImg:       $('lightbox-img'),
+  remoteAudio:       $('remote-audio'),
 };
 
 // ── Helpers ──────────────────────────────────────────
@@ -937,21 +941,95 @@ socket.on('room_deleted', ({ roomId }) => {
 });
 
 // ════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════
 // ── WebRTC Voice Call ─────────────────────────────────
 // ════════════════════════════════════════════════════
+const RTC_CONFIG = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
+    { urls: 'stun:stun.cloudflare.com:3478' }
+  ],
+  iceCandidatePoolSize: 2
+};
+
+const AUDIO_CONSTRAINTS = {
+  audio: {
+    echoCancellation: true,
+    noiseSuppression: true,
+    autoGainControl: true
+  },
+  video: false
+};
+
+function getRemoteAudio() {
+  if (!remoteAudio) {
+    remoteAudio = dom.remoteAudio || $('remote-audio');
+    if (!remoteAudio) {
+      remoteAudio = document.createElement('audio');
+      remoteAudio.id = 'remote-audio';
+      remoteAudio.autoplay = true;
+      remoteAudio.playsInline = true;
+      remoteAudio.style.display = 'none';
+      document.body.appendChild(remoteAudio);
+    }
+  }
+  remoteAudio.autoplay = true;
+  remoteAudio.playsInline = true;
+  return remoteAudio;
+}
+
+function unlockAudio() {
+  const audioEl = getRemoteAudio();
+  if (audioEl) {
+    audioEl.muted = false;
+    audioEl.volume = 1.0;
+    audioEl.play().catch(() => {});
+  }
+}
+
+async function getMicrophoneStream() {
+  try {
+    return await navigator.mediaDevices.getUserMedia(AUDIO_CONSTRAINTS);
+  } catch (err) {
+    console.warn('[WebRTC] Specific audio constraints failed, trying default audio:', err);
+    return await navigator.mediaDevices.getUserMedia({ audio: true });
+  }
+}
+
 dom.callBtn.addEventListener('click', startCall);
 
 async function startCall() {
   if (!currentTarget || currentTarget.type !== 'user') return;
+  if (callTarget || peerConn) {
+    showToast('⚠️ คุณกำลังอยู่ในสาย');
+    return;
+  }
   callTarget = currentTarget;
+  unlockAudio();
+
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    socket.emit('call_user', { targetId: callTarget.id });
-    showCallHud(callTarget.name);
-  } catch { alert('ไม่สามารถเข้าถึงไมโครโฟนได้'); }
+    localStream = await getMicrophoneStream();
+  } catch (err) {
+    console.error('[WebRTC] Microphone error:', err);
+    alert('ไม่สามารถเข้าถึงไมโครโฟนได้ กรุณาอนุญาตการเข้าถึงไมโครโฟนในเบราว์เซอร์');
+    resetCall();
+    return;
+  }
+
+  showCallHud(callTarget.name, 'กำลังโทร...');
+  socket.emit('call_user', { targetId: callTarget.id });
 }
 
 socket.on('incoming_call', ({ callerId, callerName, callerColor }) => {
+  if (peerConn || callTarget) {
+    socket.emit('reject_call', { callerId, reason: 'busy' });
+    return;
+  }
+
   dom.callerAvatar.style.cssText = avatarCss(callerColor, 58);
   dom.callerAvatar.textContent   = initials(callerName);
   dom.callerName.textContent     = callerName;
@@ -959,64 +1037,251 @@ socket.on('incoming_call', ({ callerId, callerName, callerColor }) => {
 
   dom.acceptCallBtn.onclick = async () => {
     setHidden(dom.incomingCallModal, true);
-    socket.emit('answer_call', { callerId });
+    unlockAudio();
     callTarget = { id: callerId, name: callerName, color: callerColor };
+
     try {
-      localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      await createPeerConnection(callerId, false);
-      showCallHud(callerName);
-    } catch { alert('ไม่สามารถเข้าถึงไมโครโฟนได้'); }
+      localStream = await getMicrophoneStream();
+    } catch (err) {
+      console.error('[WebRTC] Mic error on answer:', err);
+      alert('ไม่สามารถเข้าถึงไมโครโฟนได้ กรุณาอนุญาตการเข้าถึงไมโครโฟน');
+      socket.emit('reject_call', { callerId });
+      resetCall();
+      return;
+    }
+
+    showCallHud(callerName, 'กำลังเชื่อมต่อ...');
+    await createPeerConnection(callerId, false);
+    socket.emit('answer_call', { callerId });
   };
 
   dom.rejectCallBtn.onclick = () => {
     setHidden(dom.incomingCallModal, true);
     socket.emit('reject_call', { callerId });
+    resetCall();
   };
 });
 
 socket.on('call_accepted', async ({ responderId }) => {
-  if (callTarget?.id === responderId) await createPeerConnection(responderId, true);
-});
-
-socket.on('call_rejected', () => { showToast('📵 การโทรถูกปฏิเสธ'); resetCall(); });
-
-socket.on('webrtc_signal', async ({ senderId, signal }) => {
-  if (!peerConn) return;
-  if (signal.type === 'offer') {
-    await peerConn.setRemoteDescription(new RTCSessionDescription(signal));
-    const answer = await peerConn.createAnswer();
-    await peerConn.setLocalDescription(answer);
-    socket.emit('webrtc_signal', { targetId: senderId, signal: answer });
-  } else if (signal.type === 'answer') {
-    await peerConn.setRemoteDescription(new RTCSessionDescription(signal));
-  } else if (signal.candidate) {
-    await peerConn.addIceCandidate(new RTCIceCandidate(signal));
+  if (callTarget?.id === responderId) {
+    showCallHud(callTarget.name, 'กำลังเชื่อมต่อ...');
+    await createPeerConnection(responderId, true);
   }
 });
 
-socket.on('call_ended', () => { showToast('📞 วางสายแล้ว'); resetCall(); });
+socket.on('call_rejected', data => {
+  const reason = data?.reason;
+  if (reason === 'busy') {
+    showToast('📵 ผู้รับสายกำลังติดสายอื่น');
+  } else if (reason === 'offline') {
+    showToast('📵 ผู้รับสายไม่ออนไลน์');
+  } else {
+    showToast('📵 การโทรถูกปฏิเสธ');
+  }
+  resetCall();
+});
 
-async function createPeerConnection(targetId, isCaller) {
-  peerConn = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
-  localStream?.getTracks().forEach(t => peerConn.addTrack(t, localStream));
-  
-  peerConn.ontrack = e => { 
-    remoteAudio.srcObject = e.streams[0]; 
-    remoteAudio.play().catch(err => console.error("Audio play failed:", err)); 
-  };
-  
-  peerConn.onicecandidate = e => { if (e.candidate) socket.emit('webrtc_signal', { targetId, signal: e.candidate }); };
-  if (isCaller) {
-    const offer = await peerConn.createOffer();
-    await peerConn.setLocalDescription(offer);
-    socket.emit('webrtc_signal', { targetId, signal: offer });
+socket.on('webrtc_signal', async ({ senderId, signal }) => {
+  if (!callTarget || callTarget.id !== senderId) {
+    return;
+  }
+
+  if (!peerConn) {
+    console.log('[WebRTC] Buffering early signal:', signal.type || 'candidate');
+    earlySignals.push({ senderId, signal });
+    return;
+  }
+
+  await handleWebRtcSignal(senderId, signal);
+});
+
+async function handleWebRtcSignal(senderId, signal) {
+  if (!peerConn) return;
+
+  try {
+    if (signal.type === 'offer') {
+      console.log('[WebRTC] Processing remote offer');
+      await peerConn.setRemoteDescription(new RTCSessionDescription(signal));
+      await drainPendingCandidates();
+
+      const answer = await peerConn.createAnswer();
+      await peerConn.setLocalDescription(answer);
+      socket.emit('webrtc_signal', { targetId: senderId, signal: peerConn.localDescription || answer });
+
+    } else if (signal.type === 'answer') {
+      console.log('[WebRTC] Processing remote answer');
+      await peerConn.setRemoteDescription(new RTCSessionDescription(signal));
+      await drainPendingCandidates();
+
+    } else if (signal.candidate) {
+      if (peerConn.remoteDescription && peerConn.remoteDescription.type) {
+        try {
+          await peerConn.addIceCandidate(new RTCIceCandidate(signal));
+        } catch (candErr) {
+          console.warn('[WebRTC] Error adding ICE candidate:', candErr);
+        }
+      } else {
+        console.log('[WebRTC] Buffering ICE candidate pending remoteDescription');
+        pendingCandidates.push(signal);
+      }
+    }
+  } catch (err) {
+    console.error('[WebRTC] Error handling signal:', err);
   }
 }
 
-function showCallHud(name) {
-  dom.hudName.textContent = name;
-  setHidden(dom.callHud, false);
+async function drainPendingCandidates() {
+  if (!peerConn || !peerConn.remoteDescription) return;
+  while (pendingCandidates.length > 0) {
+    const cand = pendingCandidates.shift();
+    try {
+      await peerConn.addIceCandidate(new RTCIceCandidate(cand));
+    } catch (err) {
+      console.warn('[WebRTC] Error applying buffered ICE candidate:', err);
+    }
+  }
+}
+
+async function processEarlySignals(targetId) {
+  if (earlySignals.length === 0) return;
+  const list = [...earlySignals];
+  earlySignals = [];
+  for (const item of list) {
+    if (item.senderId === targetId) {
+      await handleWebRtcSignal(item.senderId, item.signal);
+    }
+  }
+}
+
+async function createPeerConnection(targetId, isCaller) {
+  if (peerConn) {
+    peerConn.close();
+    peerConn = null;
+  }
+  pendingCandidates = [];
+
+  peerConn = new RTCPeerConnection(RTC_CONFIG);
+
+  if (localStream) {
+    localStream.getAudioTracks().forEach(track => {
+      peerConn.addTrack(track, localStream);
+    });
+  }
+
+  peerConn.ontrack = e => {
+    console.log('[WebRTC] Remote track received:', e.track.kind);
+    attachRemoteAudio(e);
+  };
+
+  peerConn.onicecandidate = e => {
+    if (e.candidate) {
+      socket.emit('webrtc_signal', { targetId, signal: e.candidate });
+    }
+  };
+
+  peerConn.oniceconnectionstatechange = () => {
+    console.log('[WebRTC] ICE Connection State:', peerConn.iceConnectionState);
+    if (peerConn.iceConnectionState === 'connected' || peerConn.iceConnectionState === 'completed') {
+      startCallTimer();
+    } else if (peerConn.iceConnectionState === 'failed') {
+      console.warn('[WebRTC] ICE Connection failed! Attempting restart...');
+      if (peerConn.restartIce) {
+        peerConn.restartIce();
+      }
+    } else if (peerConn.iceConnectionState === 'disconnected') {
+      console.warn('[WebRTC] ICE Connection disconnected');
+    }
+  };
+
+  peerConn.onconnectionstatechange = () => {
+    console.log('[WebRTC] Peer Connection State:', peerConn.connectionState);
+    if (peerConn.connectionState === 'connected') {
+      startCallTimer();
+    } else if (peerConn.connectionState === 'failed') {
+      showToast('⚠️ การเชื่อมต่อเสียงขัดข้อง');
+    }
+  };
+
+  await processEarlySignals(targetId);
+
+  if (isCaller) {
+    try {
+      const offer = await peerConn.createOffer({
+        offerToReceiveAudio: true
+      });
+      await peerConn.setLocalDescription(offer);
+      socket.emit('webrtc_signal', { targetId, signal: peerConn.localDescription || offer });
+    } catch (err) {
+      console.error('[WebRTC] Failed to create offer:', err);
+      showToast('⚠️ ไม่สามารถสร้างสัญญาณการโทรได้');
+    }
+  }
+}
+
+function attachRemoteAudio(e) {
+  const audioEl = getRemoteAudio();
+  if (!audioEl) return;
+
+  audioEl.muted = false;
+  audioEl.volume = 1.0;
+
+  if (e.streams && e.streams[0]) {
+    audioEl.srcObject = e.streams[0];
+  } else if (e.track) {
+    let stream = audioEl.srcObject;
+    if (!stream || !(stream instanceof MediaStream)) {
+      stream = new MediaStream();
+      audioEl.srcObject = stream;
+    }
+    if (!stream.getTracks().some(t => t.id === e.track.id)) {
+      stream.addTrack(e.track);
+    }
+  }
+
+  if (e.track) {
+    e.track.onunmute = () => {
+      console.log('[WebRTC] Remote track unmuted, playing audio');
+      playRemoteAudio();
+    };
+  }
+
+  playRemoteAudio();
+}
+
+function playRemoteAudio() {
+  const audioEl = getRemoteAudio();
+  if (!audioEl) return;
+  const playPromise = audioEl.play();
+  if (playPromise !== undefined) {
+    playPromise.then(() => {
+      console.log('[WebRTC] Audio playback active');
+    }).catch(err => {
+      console.warn('[WebRTC] Autoplay blocked, registering user gesture trigger:', err);
+      showAutoplayPrompt();
+    });
+  }
+}
+
+function showAutoplayPrompt() {
+  showToast('🔊 แตะที่หน้าจอเพื่อเปิดเสียงสนทนา');
+  const unblock = () => {
+    const a = getRemoteAudio();
+    if (a) {
+      a.play().catch(() => {});
+    }
+    document.removeEventListener('click', unblock);
+    document.removeEventListener('touchstart', unblock);
+  };
+  document.addEventListener('click', unblock, { once: true });
+  document.addEventListener('touchstart', unblock, { once: true });
+}
+
+function startCallTimer() {
+  if (callStarted) return;
+  callStarted = true;
   callSeconds = 0;
+  dom.hudTimer.textContent = '00:00';
+  clearInterval(callTimerInterval);
   callTimerInterval = setInterval(() => {
     callSeconds++;
     const m = String(Math.floor(callSeconds / 60)).padStart(2, '0');
@@ -1025,15 +1290,43 @@ function showCallHud(name) {
   }, 1000);
 }
 
+function showCallHud(name, statusText = '00:00') {
+  dom.hudName.textContent = name;
+  dom.hudTimer.textContent = statusText;
+  setHidden(dom.callHud, false);
+}
+
 function resetCall() {
   clearInterval(callTimerInterval);
-  peerConn?.close();
-  localStream?.getTracks().forEach(t => t.stop());
-  remoteAudio.pause();
-  remoteAudio.srcObject = null;
-  
-  peerConn = localStream = callTarget = null;
-  callSeconds = 0; isMuted = false;
+  callTimerInterval = null;
+  callStarted = false;
+
+  if (peerConn) {
+    peerConn.ontrack = null;
+    peerConn.onicecandidate = null;
+    peerConn.oniceconnectionstatechange = null;
+    peerConn.onconnectionstatechange = null;
+    peerConn.close();
+    peerConn = null;
+  }
+
+  if (localStream) {
+    localStream.getTracks().forEach(t => t.stop());
+    localStream = null;
+  }
+
+  const audioEl = getRemoteAudio();
+  if (audioEl) {
+    audioEl.pause();
+    audioEl.srcObject = null;
+  }
+
+  pendingCandidates = [];
+  earlySignals = [];
+  callTarget = null;
+  callSeconds = 0;
+  isMuted = false;
+
   dom.hudTimer.textContent = '00:00';
   setHidden(dom.callHud, true);
   setHidden(dom.incomingCallModal, true);
@@ -1054,10 +1347,23 @@ dom.hangupBtn.addEventListener('click', () => {
 
 dom.muteBtn.addEventListener('click', () => {
   isMuted = !isMuted;
-  localStream?.getAudioTracks().forEach(t => { t.enabled = !isMuted; });
+  if (localStream) {
+    localStream.getAudioTracks().forEach(t => { t.enabled = !isMuted; });
+  }
   setHidden(dom.iconMic, isMuted);
   setHidden(dom.iconMicOff, !isMuted);
   dom.muteBtn.classList.toggle('muted', isMuted);
+});
+
+socket.on('call_ended', () => {
+  showToast('📞 วางสายแล้ว');
+  resetCall();
+});
+
+window.addEventListener('beforeunload', () => {
+  if (callTarget) {
+    socket.emit('end_call', { targetId: callTarget.id, durationFormatted: '00:00' });
+  }
 });
 
 // ════════════════════════════════════════════════════
